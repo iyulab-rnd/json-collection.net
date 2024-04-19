@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonCollectionNet", "JsonCollectionNet\JsonCollectionNet.csproj", "{B3A14294-F7F3-4953-8F0D-BB20A8564DBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonCollectionNet.Tests", "JsonCollectionNet.Tests\JsonCollectionNet.Tests.csproj", "{D4F108BD-3ACD-4BD0-9E8C-8CF71858F906}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0B903BEA-C7E9-4113-A0B0-8F020B78BD3F}"
+	ProjectSection(SolutionItems) = preProject
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B3A14294-F7F3-4953-8F0D-BB20A8564DBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3A14294-F7F3-4953-8F0D-BB20A8564DBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3A14294-F7F3-4953-8F0D-BB20A8564DBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3A14294-F7F3-4953-8F0D-BB20A8564DBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4F108BD-3ACD-4BD0-9E8C-8CF71858F906}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4F108BD-3ACD-4BD0-9E8C-8CF71858F906}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4F108BD-3ACD-4BD0-9E8C-8CF71858F906}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4F108BD-3ACD-4BD0-9E8C-8CF71858F906}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {97587F3C-3196-4077-8180-5CC97FEEA40C}
+	EndGlobalSection
+EndGlobal
