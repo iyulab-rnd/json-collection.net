@@ -1,8 +1,7 @@
-﻿using System.Reflection.Metadata;
+﻿using NetJsScriptBridge;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace JsonCollectionNet
 {
@@ -33,6 +32,18 @@ namespace JsonCollectionNet
                 _ => null,
             };
         }
+
+        internal static string ReplaceJson(string json)
+        {
+            if (BracketHelper.FindBracketContent(json, "new Date(") is string script)
+            {
+                var dateTime = JsScriptParser.ParseDateTime(script);
+                json = json.Replace(script, $@"""{dateTime:o}""");
+            }
+
+            var replaced = Helpers.EncapsulateJsonKeys(json);
+            return replaced;
+        }
     }
 
     public class JsonCollection
@@ -50,7 +61,7 @@ namespace JsonCollectionNet
 
         public JsonElement Aggregate(string aggregate)
         {
-            var jsonAggregate = Helpers.EncapsulateJsonKeys(aggregate);
+            var jsonAggregate = Helpers.ReplaceJson(aggregate);
             JsonNode? parsedNode = JsonNode.Parse(jsonAggregate);
 
             // JsonNode를 JsonObject로 변환하거나, JsonArray 내의 JsonObject를 추출
@@ -117,7 +128,7 @@ namespace JsonCollectionNet
                     JsonElement itemElement = item;
                     foreach (var key in keys)
                     {
-                        if (itemElement.TryGetProperty(key, out var nextElement))
+                        if (itemElement.TryGetPropertyIgnoreCase(key, out var nextElement))
                         {
                             itemElement = nextElement;
                         }
@@ -151,52 +162,132 @@ namespace JsonCollectionNet
 
         private static bool EvaluateCondition(JsonElement itemElement, JsonObject valueConditions)
         {
-            if (itemElement.ValueKind == JsonValueKind.String)
+            switch (itemElement.ValueKind)
             {
-                var itemValue = itemElement.GetString();
-                if (valueConditions.ContainsKey("$eq") && itemValue != valueConditions["$eq"].GetValue<string>())
-                {
-                    return false;
-                }
-                else if (valueConditions.ContainsKey("$ne") && itemValue == valueConditions["$ne"].GetValue<string>())
-                {
-                    return false;
-                }
-            }
-            else if (itemElement.ValueKind == JsonValueKind.Number)
-            {
-                int itemValue = itemElement.GetInt32();
-                if (valueConditions.ContainsKey("$gt") && itemValue <= valueConditions["$gt"].GetValue<int>())
-                {
-                    return false;
-                }
-                else if (valueConditions.ContainsKey("$lt") && itemValue >= valueConditions["$lt"].GetValue<int>())
-                {
-                    return false;
-                }
-                else if (valueConditions.ContainsKey("$eq") && itemValue != valueConditions["$eq"].GetValue<int>())
-                {
-                    return false;
-                }
-                else if (valueConditions.ContainsKey("$ne") && itemValue == valueConditions["$ne"].GetValue<int>())
-                {
-                    return false;
-                }
-            }
-            else if (itemElement.ValueKind == JsonValueKind.True || itemElement.ValueKind == JsonValueKind.False)
-            {
-                bool itemValue = itemElement.GetBoolean();
-                if (valueConditions.ContainsKey("$eq") && itemValue != valueConditions["$eq"].GetValue<bool>())
-                {
-                    return false;
-                }
-                else if (valueConditions.ContainsKey("$ne") && itemValue == valueConditions["$ne"].GetValue<bool>())
-                {
-                    return false;
-                }
+                case JsonValueKind.String:
+                    var stringValue = itemElement.GetString();
+                    if (DateTime.TryParse(stringValue, out DateTime dateValue))
+                    {
+                        // 날짜 조건을 먼저 확인
+                        if (valueConditions.ContainsKey("$gte"))
+                        {
+                            if (DateTime.TryParse(valueConditions["$gte"]!.GetValue<string>(), out DateTime gteValue) && dateValue < gteValue)
+                            {
+                                return false;
+                            }
+                        }
+                        else if (valueConditions.ContainsKey("$lte"))
+                        {
+                            if (DateTime.TryParse(valueConditions["$lte"]!.GetValue<string>(), out DateTime lteValue) && dateValue > lteValue)
+                            {
+                                return false;
+                            }
+                        }
+                        else if (valueConditions.ContainsKey("$gt"))
+                        {
+                            if (DateTime.TryParse(valueConditions["$gt"]!.GetValue<string>(), out DateTime gtValue) && dateValue <= gtValue)
+                            {
+                                return false;
+                            }
+                        }
+                        else if (valueConditions.ContainsKey("$lt"))
+                        {
+                            if (DateTime.TryParse(valueConditions["$lt"]!.GetValue<string>(), out DateTime ltValue) && dateValue >= ltValue)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 문자열 조건 확인
+                        if (valueConditions.ContainsKey("$eq"))
+                        {
+                            if (stringValue != valueConditions["$eq"]!.GetValue<string>())
+                            {
+                                return false;
+                            }
+                        }
+                        else if (valueConditions.ContainsKey("$ne"))
+                        {
+                            if (stringValue == valueConditions["$ne"]!.GetValue<string>())
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    break;
+
+                case JsonValueKind.Number:
+                    double numberValue = itemElement.GetDouble();
+                    // 숫자 조건 확인
+                    if (valueConditions.ContainsKey("$gt"))
+                    {
+                        if (numberValue <= valueConditions["$gt"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$lt"))
+                    {
+                        if (numberValue >= valueConditions["$lt"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$gte"))
+                    {
+                        if (numberValue < valueConditions["$gte"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$lte"))
+                    {
+                        if (numberValue > valueConditions["$lte"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$eq"))
+                    {
+                        if (numberValue != valueConditions["$eq"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$ne"))
+                    {
+                        if (numberValue == valueConditions["$ne"]!.GetValue<double>())
+                        {
+                            return false;
+                        }
+                    }
+                    break;
+
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    bool boolValue = itemElement.GetBoolean();
+                    // 불린 조건 확인
+                    if (valueConditions.ContainsKey("$eq"))
+                    {
+                        if (boolValue != valueConditions["$eq"].GetValue<bool>())
+                        {
+                            return false;
+                        }
+                    }
+                    else if (valueConditions.ContainsKey("$ne"))
+                    {
+                        if (boolValue == valueConditions["$ne"].GetValue<bool>())
+                        {
+                            return false;
+                        }
+                    }
+                    break;
             }
             return true;
         }
+
 
         private static IEnumerable<JsonElement> ApplyGroup(IEnumerable<JsonElement> source, JsonObject groupConditions)
         {
@@ -218,7 +309,7 @@ namespace JsonCollectionNet
                     JsonElement propertyElement = elem;
                     foreach (var part in parts)
                     {
-                        if (propertyElement.TryGetProperty(part, out var nextElement))
+                        if (propertyElement.TryGetPropertyIgnoreCase(part, out var nextElement))
                         {
                             propertyElement = nextElement;
                         }
@@ -242,7 +333,7 @@ namespace JsonCollectionNet
                         JsonElement propertyElement = elem;
                         foreach (var part in path)
                         {
-                            if (propertyElement.TryGetProperty(part, out var nextElement))
+                            if (propertyElement.TryGetPropertyIgnoreCase(part, out var nextElement))
                             {
                                 propertyElement = nextElement;
                             }

@@ -7,4 +7,8 @@
 	  <Description>'JsonCollectionNet' is a C# library for performing MongoDB-like aggregation operations on JSON data.</Description>
 	  <Title>JsonCollectionNet</Title>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetJsScriptBridge" Version="0.1.3" />
+  </ItemGroup>
 </Project>

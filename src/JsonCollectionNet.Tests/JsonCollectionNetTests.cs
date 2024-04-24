@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace JsonCollectionNet.Tests
 {
@@ -168,5 +169,64 @@ namespace JsonCollectionNet.Tests
 
             Assert.Equal(2, results.EnumerateArray().Count());
         }
+
+        [Fact]
+        public void TestFilterByDate()
+        {
+            var createdAtJson = @"[
+                { ""id"": 1, ""name"": ""Alice"", ""CreatedAt"": ""2024-04-17T12:34:56Z"" },
+                { ""id"": 2, ""name"": ""Bob"", ""CreatedAt"": ""2024-04-18T12:34:56Z"" },
+                { ""id"": 3, ""name"": ""Charlie"", ""CreatedAt"": ""2024-04-24T12:34:56Z"" },
+                { ""id"": 4, ""name"": ""David"", ""CreatedAt"": ""2024-04-15T12:34:56Z"" }
+              ]";
+
+            var createdAtElements = JsonSerializer.Deserialize<JsonElement>(createdAtJson);
+            var collection = new JsonCollection(createdAtElements);
+
+            // 테스트를 위해 고정된 날짜 사용
+            string testDate = "2024-04-16T00:00:00Z";
+            DateTime testDateTime = DateTime.Parse(testDate).ToUniversalTime();
+            string dateFilterJson = $@"{{ $match: {{ CreatedAt: {{ $gte: ""{testDateTime:yyyy-MM-ddTHH:mm:ssZ}"" }} }} }}";
+
+            var results = collection.Aggregate(dateFilterJson);
+
+            var expectedJson = new JsonArray
+            {
+                JsonNode.Parse(@"{ ""id"": 1, ""name"": ""Alice"", ""CreatedAt"": ""2024-04-17T12:34:56Z"" }"),
+                JsonNode.Parse(@"{ ""id"": 2, ""name"": ""Bob"", ""CreatedAt"": ""2024-04-18T12:34:56Z"" }"),
+                JsonNode.Parse(@"{ ""id"": 3, ""name"": ""Charlie"", ""CreatedAt"": ""2024-04-24T12:34:56Z"" }")
+            };
+
+            Assert.Equal(results.GetRawText(), JsonDocument.Parse(expectedJson.ToJsonString()).RootElement.GetRawText());
+        }
+
+        [Fact]
+        public void TestFilterAndCountRecentDocuments()
+        {
+            var createdAtJson = @"[
+                { ""id"": 1, ""name"": ""Alice"", ""CreatedAt"": ""2024-04-17T12:34:56Z"" },
+                { ""id"": 2, ""name"": ""Bob"", ""CreatedAt"": ""2024-04-18T12:34:56Z"" },
+                { ""id"": 3, ""name"": ""Charlie"", ""CreatedAt"": ""2024-04-24T12:34:56Z"" },
+                { ""id"": 4, ""name"": ""David"", ""CreatedAt"": ""2024-04-15T12:34:56Z"" }
+              ]";
+
+            var createdAtElements = JsonSerializer.Deserialize<JsonElement>(createdAtJson);
+            var collection = new JsonCollection(createdAtElements);
+
+            // 테스트를 위해 고정된 날짜 사용
+            string dateFilterJson = $@"{{ $match: {{ CreatedAt: {{ $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }} }} }}";
+
+            var results = collection.Aggregate(dateFilterJson);
+
+            var expectedJson = new JsonArray
+            {
+                JsonNode.Parse(@"{ ""id"": 1, ""name"": ""Alice"", ""CreatedAt"": ""2024-04-17T12:34:56Z"" }"),
+                JsonNode.Parse(@"{ ""id"": 2, ""name"": ""Bob"", ""CreatedAt"": ""2024-04-18T12:34:56Z"" }"),
+                JsonNode.Parse(@"{ ""id"": 3, ""name"": ""Charlie"", ""CreatedAt"": ""2024-04-24T12:34:56Z"" }")
+            };
+
+            Assert.Equal(results.GetRawText(), JsonDocument.Parse(expectedJson.ToJsonString()).RootElement.GetRawText());
+        }
+
     }
 }

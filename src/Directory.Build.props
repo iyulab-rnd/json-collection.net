@@ -3,7 +3,7 @@
     <LangVersion>preview</LangVersion>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Authors>iyulab</Authors>
     <Company>Iyulab Corporation</Company>
     <PackageTags>iyulab</PackageTags>
@@ -14,6 +14,7 @@
     <PackageIconUrl>https://raw.githubusercontent.com/iyulab-rnd/public/main/images/iyulab_128.png</PackageIconUrl>
     <PackageTags>Excel,Formulas</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../logo.png" Pack="true" PackagePath="" />
