@@ -35,7 +35,7 @@ namespace JsonCollectionNet
 
         internal static string ReplaceJson(string json)
         {
-            if (BracketHelper.FindBracketContent(json, "new Date(") is string script)
+            while (BracketHelper.FindBracketContent(json, "new Date(") is string script)
             {
                 var dateTime = JsScriptParser.ParseDateTime(script);
                 json = json.Replace(script, $@"""{dateTime:o}""");
@@ -162,132 +162,102 @@ namespace JsonCollectionNet
 
         private static bool EvaluateCondition(JsonElement itemElement, JsonObject valueConditions)
         {
-            switch (itemElement.ValueKind)
+            foreach (var condition in valueConditions)
             {
-                case JsonValueKind.String:
-                    var stringValue = itemElement.GetString();
-                    if (DateTime.TryParse(stringValue, out DateTime dateValue))
-                    {
-                        // 날짜 조건을 먼저 확인
-                        if (valueConditions.ContainsKey("$gte"))
-                        {
-                            if (DateTime.TryParse(valueConditions["$gte"]!.GetValue<string>(), out DateTime gteValue) && dateValue < gteValue)
-                            {
-                                return false;
-                            }
-                        }
-                        else if (valueConditions.ContainsKey("$lte"))
-                        {
-                            if (DateTime.TryParse(valueConditions["$lte"]!.GetValue<string>(), out DateTime lteValue) && dateValue > lteValue)
-                            {
-                                return false;
-                            }
-                        }
-                        else if (valueConditions.ContainsKey("$gt"))
-                        {
-                            if (DateTime.TryParse(valueConditions["$gt"]!.GetValue<string>(), out DateTime gtValue) && dateValue <= gtValue)
-                            {
-                                return false;
-                            }
-                        }
-                        else if (valueConditions.ContainsKey("$lt"))
-                        {
-                            if (DateTime.TryParse(valueConditions["$lt"]!.GetValue<string>(), out DateTime ltValue) && dateValue >= ltValue)
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 문자열 조건 확인
-                        if (valueConditions.ContainsKey("$eq"))
-                        {
-                            if (stringValue != valueConditions["$eq"]!.GetValue<string>())
-                            {
-                                return false;
-                            }
-                        }
-                        else if (valueConditions.ContainsKey("$ne"))
-                        {
-                            if (stringValue == valueConditions["$ne"]!.GetValue<string>())
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                    break;
+                string key = condition.Key;
+                JsonNode valueNode = condition.Value;
 
-                case JsonValueKind.Number:
-                    double numberValue = itemElement.GetDouble();
-                    // 숫자 조건 확인
-                    if (valueConditions.ContainsKey("$gt"))
-                    {
-                        if (numberValue <= valueConditions["$gt"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    else if (valueConditions.ContainsKey("$lt"))
-                    {
-                        if (numberValue >= valueConditions["$lt"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    else if (valueConditions.ContainsKey("$gte"))
-                    {
-                        if (numberValue < valueConditions["$gte"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    else if (valueConditions.ContainsKey("$lte"))
-                    {
-                        if (numberValue > valueConditions["$lte"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    else if (valueConditions.ContainsKey("$eq"))
-                    {
-                        if (numberValue != valueConditions["$eq"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    else if (valueConditions.ContainsKey("$ne"))
-                    {
-                        if (numberValue == valueConditions["$ne"]!.GetValue<double>())
-                        {
-                            return false;
-                        }
-                    }
-                    break;
+                // JsonNode를 JsonElement로 변환
+                string jsonValueString = valueNode.ToJsonString();
+                JsonElement value;
+                using (var jsonDoc = JsonDocument.Parse(jsonValueString))
+                {
+                    value = jsonDoc.RootElement.Clone();
+                }
 
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    bool boolValue = itemElement.GetBoolean();
-                    // 불린 조건 확인
-                    if (valueConditions.ContainsKey("$eq"))
-                    {
-                        if (boolValue != valueConditions["$eq"].GetValue<bool>())
+                switch (itemElement.ValueKind)
+                {
+                    case JsonValueKind.String:
+                        var stringValue = itemElement.GetString();
+                        // 날짜 또는 문자열 조건
+                        if (DateTime.TryParse(stringValue, out DateTime dateValue))
                         {
-                            return false;
+                            // 날짜 조건 검사
+                            if (!EvaluateDateTimeCondition(dateValue, key, value)) return false;
                         }
-                    }
-                    else if (valueConditions.ContainsKey("$ne"))
-                    {
-                        if (boolValue == valueConditions["$ne"].GetValue<bool>())
+                        else
                         {
-                            return false;
+                            // 문자열 조건 검사
+                            if (!EvaluateStringCondition(stringValue, key, value)) return false;
                         }
-                    }
-                    break;
+                        break;
+
+                    case JsonValueKind.Number:
+                        var numberValue = itemElement.GetDouble();
+                        // 숫자 조건 검사
+                        if (!EvaluateNumberCondition(numberValue, key, value)) return false;
+                        break;
+
+                    case JsonValueKind.True:
+                    case JsonValueKind.False:
+                        var boolValue = itemElement.GetBoolean();
+                        // 불린 조건 검사
+                        if (!EvaluateBooleanCondition(boolValue, key, value)) return false;
+                        break;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool EvaluateDateTimeCondition(DateTime dateValue, string conditionKey, JsonElement conditionValue)
+        {
+            if (DateTime.TryParse(conditionValue.GetString(), out DateTime targetDate))
+            {
+                switch (conditionKey)
+                {
+                    case "$gte": return dateValue >= targetDate;
+                    case "$lte": return dateValue <= targetDate;
+                    case "$gt": return dateValue > targetDate;
+                    case "$lt": return dateValue < targetDate;
+                }
+            }
+            return true; // 조건 값이 날짜가 아니면 건너뛰기
+        }
+
+        private static bool EvaluateStringCondition(string stringValue, string conditionKey, JsonElement conditionValue)
+        {
+            switch (conditionKey)
+            {
+                case "$eq": return stringValue == conditionValue.GetString();
+                case "$ne": return stringValue != conditionValue.GetString();
             }
             return true;
         }
 
+        private static bool EvaluateNumberCondition(double numberValue, string conditionKey, JsonElement conditionValue)
+        {
+            switch (conditionKey)
+            {
+                case "$gt": return numberValue > conditionValue.GetDouble();
+                case "$lt": return numberValue < conditionValue.GetDouble();
+                case "$gte": return numberValue >= conditionValue.GetDouble();
+                case "$lte": return numberValue <= conditionValue.GetDouble();
+                case "$eq": return numberValue == conditionValue.GetDouble();
+                case "$ne": return numberValue != conditionValue.GetDouble();
+            }
+            return true;
+        }
+
+        private static bool EvaluateBooleanCondition(bool boolValue, string conditionKey, JsonElement conditionValue)
+        {
+            switch (conditionKey)
+            {
+                case "$eq": return boolValue == conditionValue.GetBoolean();
+                case "$ne": return boolValue != conditionValue.GetBoolean();
+            }
+            return true;
+        }
 
         private static IEnumerable<JsonElement> ApplyGroup(IEnumerable<JsonElement> source, JsonObject groupConditions)
         {
